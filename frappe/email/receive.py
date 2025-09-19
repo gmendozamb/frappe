@@ -446,14 +446,23 @@ class Email:
 		_from_email = self.decode_email(self.mail.get("X-Original-From") or self.mail["From"])
 		_reply_to = self.decode_email(self.mail.get("Reply-To"))
 
-		if _reply_to and not frappe.db.get_value("Email Account", {"email_id": _reply_to}, "email_id"):
+		if not _from_email:
+			# happens in some cases when email server is misconfigured
+			# should not fail the entire syncing process
+			frappe.log_error(
+				f"Email missing `From` header. UID: {getattr(self, 'uid', 'unknown')}", str(self.mail)
+			)
+			self.from_email = None
+			return
+
+		if _reply_to and not frappe.db.get_value(
+			"Email Account", {"email_id": _reply_to, "enable_incoming": 1}, "email_id"
+		):
 			self.from_email = extract_email_id(_reply_to)
 		else:
 			self.from_email = extract_email_id(_from_email)
 
-		if self.from_email:
-			self.from_email = self.from_email.lower()
-
+		self.from_email = self.from_email.lower()
 		self.from_real_name = parse_addr(_from_email)[0] if "@" in _from_email else _from_email
 
 	@staticmethod
@@ -845,6 +854,9 @@ class InboundMail(Email):
 		if email_fields.sender_name_field:
 			parent.set(email_fields.sender_name_field, frappe.as_unicode(self.from_real_name))
 
+		if email_fields.recipient_account_field:
+			parent.set(email_fields.recipient_account_field, self.email_account.name)
+
 		parent.flags.ignore_mandatory = True
 
 		try:
@@ -886,7 +898,7 @@ class InboundMail(Email):
 		"""Returns Email related fields of a doctype."""
 		fields = frappe._dict()
 
-		email_fields = ["subject_field", "sender_field", "sender_name_field"]
+		email_fields = ["subject_field", "sender_field", "sender_name_field", "recipient_account_field"]
 		meta = frappe.get_meta(doctype)
 
 		for field in email_fields:

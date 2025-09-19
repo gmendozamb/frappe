@@ -62,12 +62,12 @@ export default class Grid {
 	make() {
 		let template = `
 			<div class="grid-field">
-				<label class="control-label">${__(this.df.label || "")}</label>
+				<label class="control-label">${__(this.df.label || "", null, this.df.parent)}</label>
 				<span class="help"></span>
 				<p class="text-muted small grid-description"></p>
 				<div class="grid-custom-buttons"></div>
 				<div class="form-grid-container">
-					<div class="form-grid">
+					<div class="form-grid" tabIndex="0">
 						<div class="grid-heading-row"></div>
 						<div class="grid-body">
 							<div class="rows"></div>
@@ -364,6 +364,7 @@ export default class Grid {
 			frm: this.frm,
 			grid: this,
 			configure_columns: true,
+			header_row: true,
 		});
 
 		this.header_search = new GridRow({
